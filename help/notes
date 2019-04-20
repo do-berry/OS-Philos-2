@@ -1,0 +1,11 @@
+// code from stack to show timeout
+int secondsLeft = 120;
+  initscr();
+  curs_set(0);
+  do {
+    printw("%i", secondsLeft);
+    refresh();
+    erase();
+    secondsLeft--;
+    napms(1000);
+  } while (secondsLeft > 0);
