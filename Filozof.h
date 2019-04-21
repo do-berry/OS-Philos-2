@@ -15,7 +15,7 @@ public:
   bool filozofowanie;
   Filozof();
   ~Filozof();
-  void jedz();
+  bool jedz();
   void filozofuj();
 };
 
