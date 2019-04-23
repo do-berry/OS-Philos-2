@@ -17,6 +17,7 @@ public:
   ~Filozof();
   bool jedz();
   void filozofuj();
+  static void zmien(bool widelec, bool status);          // true == lewy; false == prawy
 };
 
 #endif  //FILOZOF_H

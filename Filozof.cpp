@@ -2,13 +2,13 @@
 #include <curses.h>
 
 Filozof::Filozof() {
-  licznik++;
-  //int start = std::rand() % 2;                   // posilek lub filozofowanie
-	//if (start == 0) {
-		//this->jedz();
-	//} else {
+  //licznik++;
+  int start = std::rand() % 2;                   // posilek lub filozofowanie
+	if (start == 0) {
+		this->jedz();
+	} else {
 		this->filozofuj();
-	//}
+	}
 }
 
 Filozof::~Filozof() {}
@@ -32,6 +32,14 @@ bool Filozof::jedz() {
 void Filozof::filozofuj() {
 	this->filozofowanie = true;
   this->posilek = false;
+}
+
+void Filozof::zmien(bool widelec, bool status) {
+  if (widelec) {
+    lewyWidelec = status;
+  } else {
+    prawyWidelec = status;
+  }
 }
 
 bool Filozof::lewyWidelec = false;

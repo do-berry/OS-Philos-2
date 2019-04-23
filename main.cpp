@@ -15,20 +15,42 @@ using namespace std;
 
 #define ileFilozofow 5
 
-struct xy {
-  int x;
-  int y;
-};
-
 mutex watkiMutex;
-struct xy wspolrzedne [ileFilozofow];
-struct xy sztucce;
+int posilki [ileFilozofow] = {3, 3, 3, 3, 3};
 WINDOW * w[ileFilozofow];
 thread watki [ileFilozofow + 1];
-Filozof * filozofowie [ileFilozofow];
-bool run = false;
 condition_variable cv;
-bool ready = false;
+Filozof * filozofowie [ileFilozofow];
+bool run = true;
+
+bool koniec() {
+  if (run) return false;
+  else return true;
+}
+
+void pisz(int id, int linia, string tekst) {
+  watkiMutex.lock();
+  mvwaddstr(w[id], linia, 0, tekst.c_str());
+  wrefresh(w[id]);
+  watkiMutex.unlock();
+}
+
+void ilePosilkow(int id) {
+  string tekst;
+  if (posilki[id] > 0)
+    tekst = "zjedzonych posilkow: " + to_string(posilki[id]) + "\n";
+  else {
+    tekst = "umarl z glodu\n";
+  }
+  watkiMutex.lock();
+  mvwaddstr(w[id], 4, 0, tekst.c_str());
+  wrefresh(w[id]);
+  watkiMutex.unlock();
+  if (posilki[id] == 0) {
+    unique_lock<mutex> lck(watkiMutex);
+    cv.wait(lck, koniec);
+  }
+}
 
 void * robCos(int id) {
   unsigned int timeout = rand() % 6000 + 2500;             // tyle bedzie spal watek
@@ -36,62 +58,50 @@ void * robCos(int id) {
   nr = "Filozof " + to_string(id) + "\n";
 
   while (run) {
+    ilePosilkow(id);
     if (filozofowie[id]->posilek) {
+      tekst = "jest glodny";
+      pisz(id, 1, tekst);
+      this_thread::sleep_for(chrono::milliseconds(1000));
       if (!Filozof::lewyWidelec) {
-        Filozof::lewyWidelec = true;
+        Filozof::zmien(true, true);
         tekst = "je lewym widelcem";
-        watkiMutex.lock();
-        mvwaddstr(w[id], 1, 0, tekst.c_str());
-        wrefresh(w[id]);
-        mvwaddstr(w[ileFilozofow], 1, 0, nr.c_str());
-        wrefresh(w[ileFilozofow]);
-        watkiMutex.unlock();
+        posilki[id]++;
+        pisz(id, 1, tekst);
+        pisz(ileFilozofow, 1, nr);
         this_thread::sleep_for(chrono::milliseconds(timeout));
-        Filozof::lewyWidelec = false;
+        Filozof::zmien(true, false);
       } else if (!Filozof::prawyWidelec) {
-        Filozof::prawyWidelec = true;
+        Filozof::zmien(false, true);
         tekst = "je prawym widelcem";
-        watkiMutex.lock();
-        mvwaddstr(w[id], 1, 0, tekst.c_str());
-        wrefresh(w[id]);
-        mvwaddstr(w[ileFilozofow], 2, 0, nr.c_str());
-        wrefresh(w[ileFilozofow]);
-        watkiMutex.unlock();
+        posilki[id]++;
+        pisz(id, 1, tekst);
+        pisz(ileFilozofow, 2, nr);
         this_thread::sleep_for(chrono::milliseconds(timeout));
-        Filozof::prawyWidelec = false;
+        Filozof::zmien(false, false);
       } else {
         tekst = "nie ma wolnego widelca";
-        watkiMutex.lock();
-        mvwaddstr(w[id], 1, 0, tekst.c_str());
-        wrefresh(w[id]);
-        watkiMutex.unlock();
-        this_thread::sleep_for(chrono::milliseconds(1500));
+        posilki[id]--;
+        pisz(id, 1, tekst);
+        this_thread::sleep_for(chrono::milliseconds(1000));
       }
       filozofowie[id]->filozofuj();
     } else {
       tekst = "filozofuje\n";
-      watkiMutex.lock();
-      mvwprintw(w[id], 1, 0, tekst.c_str());
-      wrefresh(w[id]);
-      watkiMutex.unlock();
+      pisz(id, 1, tekst);
+      this_thread::sleep_for(chrono::milliseconds(timeout));
       filozofowie[id]->jedz();
     }
   }
 }
 
-// true: lewy; false: prawy;
 void sprawdzStatus(int id) {
   watkiMutex.lock();
   if (!Filozof::lewyWidelec) {
     mvwaddstr(w[id], 1, 0, "lewy widelec");
-  } else {
-    //mvwaddstr(w[id], 1, 0, "\n");
   }
-  wrefresh(w[id]);
   if (!Filozof::prawyWidelec) {
     mvwaddstr(w[id], 2, 0, "prawy widelec");
-  } else {
-    //mvwaddstr(w[id], 2, 0, "\n");
   }
   wrefresh(w[id]);
   watkiMutex.unlock();
@@ -101,51 +111,48 @@ void utworzWatki(int x, int y) {
   run = true;
   for (int i = 0; i < ileFilozofow; i++) {
     string tekst = "Filozof " + to_string(i) + ":\n";
-    filozofowie[i] = new Filozof();                       // id watku odpowiada
+    filozofowie[i] = new Filozof();
     mvwaddstr(w[i], 0, 0, tekst.c_str());
     wrefresh(w[i]);
   }
-  mvwaddstr(w[5], 0, 0, "Przy stole:\n");
-  wrefresh(w[5]);
-
+  string txt = "Przy stole:\n";
+  mvwaddstr(w[ileFilozofow], 0, 0, txt.c_str());
+  wrefresh(w[ileFilozofow]);
   for (int i = 0; i < ileFilozofow; i++) {
     watki[i] = thread(&robCos, i);                        // id filozofa
   }
-  watki[ileFilozofow] = thread(&sprawdzStatus, ileFilozofow);
+//  watki[ileFilozofow] = thread(&sprawdzStatus, ileFilozofow);*/
 }
 
 void zatrzymajWatki() {
   run = false;
   for (int i = 0; i < ileFilozofow; i++) {
-    watki[i].join();
-    watki[i].detach();
+    //if (watki[i].joinable()) {
+      watki[i].join();
+    //}
   }
 }
 
 void start() {
   int x, y;
-
   initscr();
   refresh();
-
   getmaxyx(stdscr, y, x);
   x /= 3;
   y /= 2;
-  w[0] = newwin(y, x, 0, 0);
-  w[1] = newwin(y, x, 0, x);
-  w[2] = newwin(y, x, 0, 2*x);
-  w[3] = newwin(y, x, y, 0);
-  w[4] = newwin(y, x, y, x);
-  w[5] = newwin(y, x, y, 2*x);
-
+  w[0] = newwin(y, x, 0, 0);            // filozof 0
+  w[1] = newwin(y, x, 0, x);            // filozof 1
+  w[2] = newwin(y, x, 0, 2*x);          // filozof 2
+  w[3] = newwin(y, x, y, 0);            // filozof 3
+  w[4] = newwin(y, x, y, x);            // filozof 4
+  w[5] = newwin(y, x, y, 2*x);          // kto przy stole
   char wybor = 0;
   utworzWatki(x, y);
-
-  while(1) {
-    if ((wybor = getch()) == 'n'){
-      zatrzymajWatki();
-      break;
-    }
+  while(wybor != 'n') {
+      cin >> wybor;
+      if (wybor == 'n') {
+        zatrzymajWatki();
+      }
   }
   endwin();
 }
